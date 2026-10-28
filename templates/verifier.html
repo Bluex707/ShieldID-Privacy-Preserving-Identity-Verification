@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>University Bookstore - Verifier Portal</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="/static/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+    <!-- QRCode.js Library -->
+    <script src="{{ url_for('static', filename='qrcode.min.js') }}"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .verifier-card {
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+        }
+        .qr-wrapper {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 12px;
+            display: inline-block;
+            border: 2px dashed #dee2e6;
+        }
+        .badge-policy {
+            background-color: #e9ecef;
+            color: #495057;
+            font-size: 0.85rem;
+            padding: 6px 12px;
+            border-radius: 20px;
+        }
+        #qrcode img, #qrcode canvas {
+            margin: auto;
+            display: block;
+        }
+    </style>
+</head>
+<body class="py-5">
+<div class="container" style="max-width: 650px;">
+
+    <!-- Header Section -->
+    <div class="text-center mb-4">
+        <h2 class="fw-bold">📚 Campus Bookstore</h2>
+        <p class="text-muted">Student Discount Eligibility Verification Portal</p>
+    </div>
+
+    <!-- Alert Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm mb-4" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <!-- Main Verification Card -->
+    <div class="card verifier-card p-4 text-center">
+        
+        <!-- Verification Policy Notice -->
+        <div class="mb-4">
+            <h5 class="card-title text-start mb-2">📋 Verification Request</h5>
+            <p class="text-muted small text-start">
+                To receive your student discount, prove active enrollment status. 
+                <strong>Zero Knowledge:</strong> No personal details (Name, Student ID, or Program) will be collected or stored.
+            </p>
+
+        </div>
+
+        <hr class="my-3">
+
+        <!-- QR Code Presentation Area -->
+        <div class="my-3">
+            <h6 class="fw-bold text-uppercase text-secondary tracking-wide mb-3">Scan Credential QR Code</h6>
+            
+            <div class="qr-wrapper mb-3">
+                <div id="qrcode"></div>
+            </div>
+
+            <p class="small text-muted mb-2">
+                Challenge Nonce: <code class="text-dark bg-light px-2 py-1 rounded" id="challengeDisplay">{{ challenge }}</code>
+            </p>
+
+            <!-- Action Buttons for Demo -->
+            <div class="d-flex justify-content-center gap-2 mt-3">
+                <button type="button" class="btn btn-outline-primary btn-sm" id="downloadQrBtn">
+                    📥 Download QR Image
+                </button>
+            </div>
+        </div>
+
+        <hr class="my-4">
+
+
+
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="/static/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+
+
+<script nonce="{{ csp_nonce }}">
+document.addEventListener("DOMContentLoaded", function() {
+    const challengeNonce = {{ challenge|tojson }};
+    const callbackUrl = {{ callback_url|tojson }};
+    const container = document.getElementById("qrcode");
+
+    if (!container) return;
+
+    // 1. Render QR Code
+    const qrPayload = JSON.stringify({
+        challenge: challengeNonce,
+        callback_url: callbackUrl,
+        required_attribute: "enrollment_status",
+        required_value: "active"
+    });
+
+    try {
+        const qrcode = new QRCode(container, {
+            text: qrPayload,
+            width: 180,
+            height: 180,
+            colorDark: "#1e3c72",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    } catch (err) {
+        console.error("QRCode library missing or failed to initialize:", err);
+        container.innerHTML = `<p class="text-danger small">Failed to generate QR Code. The QR library failed to load.</p>`;
+    }
+
+    // 2. Download Handler
+    const downloadBtn = document.getElementById("downloadQrBtn");
+    if (downloadBtn) {
+        downloadBtn.addEventListener("click", function() {
+            const canvas = container.querySelector("canvas");
+            const img = container.querySelector("img");
+            let imageURI = canvas ? canvas.toDataURL("image/png") : (img ? img.src : "");
+
+            if (imageURI) {
+                const link = document.createElement("a");
+                link.href = imageURI;
+                link.download = `verifier_qr_${challengeNonce.substring(0, 8)}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else {
+                alert("QR Code image is still rendering. Please try again in a moment.");
+            }
+        });
+    }
+
+    // 3. Status Polling (ONLY replaces QR container when status is PASSED or FAILED)
+    const pollInterval = setInterval(function() {
+        fetch(`/api/status/${challengeNonce}`)
+            .then(response => response.json())
+            .then(data => {
+                // Ignore 'pending' so the QR code stays visible.
+                function box(kind, title, text, extra) {
+                    container.replaceChildren();
+                    const wrap = document.createElement("div");
+                    wrap.className = "alert alert-" + kind + " p-3 my-2 shadow-sm";
+                    const h = document.createElement("h4"); h.className = "fw-bold mb-1"; h.textContent = title;
+                    const p = document.createElement("p"); p.className = "mb-0 small"; p.textContent = text;
+                    wrap.append(h, p);
+                    if (extra) wrap.append(extra);
+                    container.append(wrap);
+                }
+                if (data.status === "passed") {
+                    clearInterval(pollInterval);
+                    box("success", "✅ Verification Passed!", "Student Eligibility Confirmed");
+                } else if (data.status === "failed") {
+                    clearInterval(pollInterval);
+                    box("danger", "❌ Verification Failed", data.reason);
+                } else if (data.status === "expired") {
+                    clearInterval(pollInterval);
+                    const note = document.createElement("p");
+                    note.className = "mb-0 small text-muted mt-2";
+                    note.textContent = "Getting a new one shortly...";
+                    box("warning", "⏱️ QR Code Expired", data.reason, note);
+                    setTimeout(function() { location.reload(); }, 1500);
+                }
+            })
+            .catch(err => console.log("Polling check...", err));
+    }, 2000);
+});
+</script>
+</body>
+</html>

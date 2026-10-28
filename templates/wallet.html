@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>UJ Identity Wallet</title>
+    <link href="/static/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/vendor/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
+    <!-- jsQR Library for reading QR images in browser -->
+    <script src="/static/vendor/jsqr/jsQR.js"></script>
+    <style>
+        :root{
+            --uj-green-dark:#0b3d2e;
+            --uj-green:#0f5c40;
+            --uj-green-light:#1c8f63;
+            --uj-gold:#c8a24d;
+            --uj-gold-light:#e9d38f;
+            --uj-cream:#f7f5ef;
+            --ink:#122019;
+            --danger:#b3261e;
+            --ok:#1c8f63;
+        }
+        body{
+            background: var(--uj-cream);
+            font-family:'Inter', system-ui, sans-serif;
+            color: var(--ink);
+        }
+        h1,h2,h3,h4,h5,.brand-font{ font-family:'Poppins', system-ui, sans-serif; }
+
+        /* ---------- Header ---------- */
+        .uj-topbar{
+            background: linear-gradient(135deg, var(--uj-green-dark), var(--uj-green) 70%);
+            border-bottom: 3px solid var(--uj-gold);
+            padding: 18px 0;
+            margin-bottom: 32px;
+        }
+        .uj-logo-badge{
+            width:46px; height:46px;
+            display:flex; align-items:center; justify-content:center;
+            flex-shrink:0;
+        }
+        .uj-logo-badge img{
+            width:100%; height:100%; object-fit:contain;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,.35));
+        }
+        .uj-brand-text{ color:#fff; }
+        .uj-brand-text small{ color: var(--uj-gold-light); }
+
+        /* ---------- Auth card ---------- */
+        .auth-card{
+            border: none;
+            border-radius: 18px;
+            box-shadow: 0 12px 30px rgba(11,61,46,0.12);
+        }
+        .nav-tabs .nav-link{ color:#6b7a72; font-weight:600; border:none; }
+        .nav-tabs .nav-link.active{
+            color: var(--uj-green-dark);
+            border-bottom: 3px solid var(--uj-gold);
+            background: transparent;
+        }
+        .btn-uj-primary{
+            background: var(--uj-green); border-color: var(--uj-green); color:#fff; font-weight:600;
+        }
+        .btn-uj-primary:hover{ background: var(--uj-green-dark); border-color: var(--uj-green-dark); color:#fff; }
+        .btn-uj-gold{ background: var(--uj-gold); border-color: var(--uj-gold); color: var(--uj-green-dark); font-weight:700; }
+        .btn-uj-gold:hover{ background: var(--uj-gold-light); color: var(--uj-green-dark); }
+
+        .form-control:focus{ border-color: var(--uj-green-light); box-shadow:0 0 0 .2rem rgba(28,143,99,.15); }
+
+        .pw-toggle-btn{ border-color:#ced4da; }
+        .pw-toggle-btn:hover{ background:#f1f1f1; }
+
+        /* ---------- Password requirement checklist ---------- */
+        .pw-requirements{
+            list-style:none; padding:0; margin: 8px 0 0 0;
+            font-size: 0.82rem;
+        }
+        .pw-requirements li{
+            display:flex; align-items:center; gap:6px;
+            color:#8a8a8a; padding:2px 0;
+            transition:color .15s ease;
+        }
+        .pw-requirements li.met{ color: var(--ok); }
+        .pw-requirements li .req-icon::before{ content:"\f62a"; font-family:"bootstrap-icons"; } /* circle */
+        .pw-requirements li.met .req-icon::before{ content:"\f26b"; } /* check-circle-fill */
+        .pw-match-msg{ font-size:0.82rem; margin-top:4px; }
+        .pw-match-msg.ok{ color: var(--ok); }
+        .pw-match-msg.bad{ color: var(--danger); }
+
+        /* ---------- VC ID Card ---------- */
+        .vc-card{
+            position:relative;
+            background: linear-gradient(135deg, var(--uj-green-dark) 0%, var(--uj-green) 55%, var(--uj-green-light) 100%);
+            color: white;
+            border-radius: 20px;
+            padding: 0;
+            box-shadow: 0 14px 34px rgba(11,61,46,0.35);
+            max-width: 460px;
+            margin: auto;
+            overflow:hidden;
+            border: 1px solid rgba(200,162,77,0.5);
+        }
+        .vc-card .gold-strip{
+            height:6px;
+            background: linear-gradient(90deg, var(--uj-gold-light), var(--uj-gold), var(--uj-gold-light));
+        }
+        .vc-card .vc-body{ padding: 22px 24px 24px; }
+        .vc-card .vc-header{
+            display:flex; align-items:center; gap:12px; margin-bottom: 18px;
+        }
+        .vc-card .vc-header .uni-info{ line-height:1.15; }
+        .vc-card .vc-header .uni-info .uni-name{ font-family:'Poppins',sans-serif; font-weight:700; font-size:0.95rem; }
+        .vc-card .vc-header .uni-info .uni-sub{ font-size:0.7rem; letter-spacing:.06em; color: var(--uj-gold-light); text-transform:uppercase; }
+
+        .student-avatar{
+            width:56px; height:56px; border-radius:50%;
+            background: rgba(255,255,255,0.15);
+            border: 2px solid var(--uj-gold);
+            display:flex; align-items:center; justify-content:center;
+            font-family:'Poppins',sans-serif; font-weight:700; font-size:1.2rem;
+            color: var(--uj-gold-light);
+            flex-shrink:0;
+            /* Placeholder avatar: swap for an <img> of the student's photo when
+               a photo-upload flow is added to registration. */
+        }
+        .vc-card .student-name{ font-family:'Poppins',sans-serif; font-weight:700; font-size:1.3rem; margin-bottom:2px; }
+        .vc-card .attr-label{ display:block; opacity:.6; font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; }
+        .vc-card .attr-value{ font-weight:600; }
+        .vc-card .chip-strip{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+        .vc-card .id-chip{
+            width:42px; height:32px; border-radius:6px;
+            background: linear-gradient(135deg, var(--uj-gold-light), var(--uj-gold));
+        }
+    </style>
+    <script src="/static/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+</head>
+<body>
+
+<div class="uj-topbar">
+    <div class="container d-flex align-items-center gap-3" style="max-width:600px;">
+        <div class="uj-logo-badge"><i class="bi bi-shield-lock-fill" style="font-size:1.6rem;color:#1e3c72;"></i></div>
+        <div class="uj-brand-text">
+            <div class="fw-bold" style="font-size:1.05rem;">University of Jordan</div>
+            <small>Student Digital Identity Wallet</small>
+        </div>
+    </div>
+</div>
+
+<div class="container pb-5" style="max-width: 600px;">
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm">{{ message }}
+             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% if mode == 'auth' %}
+    <!-- Wallet Register / Login -->
+    <div class="card auth-card p-4">
+        <h3 class="text-center mb-4 brand-font"><i class="bi bi-shield-lock-fill" style="color:var(--uj-green);"></i> Student Wallet</h3>
+
+        <ul class="nav nav-tabs mb-3" id="authTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="register-tab" data-bs-toggle="tab" data-bs-target="#register-pane" type="button" role="tab">Register</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="login-tab" data-bs-toggle="tab" data-bs-target="#login-pane" type="button" role="tab">Login</button>
+            </li>
+        </ul>
+
+        <div class="tab-content">
+            <div class="tab-pane fade show active" id="register-pane" role="tabpanel">
+                <h5>Create a New Wallet</h5>
+                <form action="/wallet/auth" method="POST" autocomplete="off" id="registerForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="action" value="register">
+
+                    <div class="mb-2">
+                        <label class="form-label small text-muted">Username</label>
+                        <input type="text" name="username" class="form-control" placeholder="Choose a username" required>
+                    </div>
+
+                    <!-- Password -->
+                    <div class="mb-2">
+                        <label class="form-label small text-muted">Password</label>
+                        <div class="input-group">
+                            <input type="password" name="password" id="regPassword" class="form-control"
+                                   minlength="12" placeholder="At least 12 characters" required
+                                   autocomplete="new-password">
+                            <button class="btn btn-outline-secondary pw-toggle-btn" type="button" data-toggle-target="regPassword">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <ul class="pw-requirements" id="pwRequirements">
+                            <li data-rule="length"><span class="req-icon"></span> At least 12 characters</li>
+                            <li data-rule="lower"><span class="req-icon"></span> One lowercase letter (a-z)</li>
+                            <li data-rule="upper"><span class="req-icon"></span> One uppercase letter (A-Z)</li>
+                            <li data-rule="digit"><span class="req-icon"></span> One number (0-9)</li>
+                            <li data-rule="symbol"><span class="req-icon"></span> One special character (! @ # $ % ^ &amp; *)</li>
+                        </ul>
+                    </div>
+
+                    <!-- Confirm Password -->
+                    <div class="mb-2">
+                        <label class="form-label small text-muted">Confirm Password</label>
+                        <div class="input-group">
+                            <input type="password" name="confirm_password" id="regConfirmPassword" class="form-control"
+                                   placeholder="Re-type your password" required autocomplete="new-password">
+                            <button class="btn btn-outline-secondary pw-toggle-btn" type="button" data-toggle-target="regConfirmPassword">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <div class="pw-match-msg" id="pwMatchMsg"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">Transaction PIN (4–8 Digits)</label>
+                        <div class="input-group">
+                            <input type="password" name="pin" id="regPin" class="form-control" pattern="\d{4,8}" placeholder="e.g. 1234" required>
+                            <button class="btn btn-outline-secondary pw-toggle-btn" type="button" data-toggle-target="regPin">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted">Used only to authorize issuing or revoking your credential — separate from your password.</small>
+                    </div>
+
+                    <button class="btn btn-uj-primary w-100" type="submit">Create Wallet</button>
+                </form>
+            </div>
+
+            <div class="tab-pane fade" id="login-pane" role="tabpanel">
+                <h5>Log Into Your Wallet</h5>
+                <form action="/wallet/auth" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="action" value="login">
+                    <div class="mb-2">
+                        <input type="text" name="username" class="form-control" placeholder="Username" required>
+                    </div>
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <input type="password" name="password" id="loginPassword" class="form-control" placeholder="Password" required>
+                            <button class="btn btn-outline-secondary pw-toggle-btn" type="button" data-toggle-target="loginPassword">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button class="btn btn-uj-primary w-100" type="submit" style="background:var(--uj-green-light); border-color:var(--uj-green-light);">Log In</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Main Dashboard -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-0 brand-font">My Identity Wallet</h4>
+            <small class="text-muted">Logged in as <strong>{{ wallet.username }}</strong></small>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#pinModal">
+                 Request New Credential
+            </button>
+            <a href="/wallet/logs" class="btn btn-outline-secondary btn-sm"><i class="bi bi-shield-check"></i> Security Log</a>
+            <form action="/wallet/logout" method="POST" class="d-inline"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="btn btn-outline-secondary btn-sm">Log Out</button></form>
+        </div>
+    </div>
+
+    {% if card %}
+        <!-- Visual Credential Card -->
+        <div class="vc-card mb-4">
+            <div class="gold-strip"></div>
+            <div class="vc-body">
+                <div class="chip-strip">
+                    <div class="id-chip"></div>
+                    <small class="text-uppercase" style="letter-spacing:.08em; opacity:.75;">Student ID Card</small>
+                </div>
+
+                <div class="vc-header">
+                    <div class="uj-logo-badge" style="width:38px;height:38px;"><i class="bi bi-shield-lock-fill" style="font-size:1.6rem;color:#1e3c72;"></i></div>
+                    <div class="uni-info">
+                        <div class="uni-name">University of Jordan</div>
+                        <div class="uni-sub">{{ card.issuer_id }}</div>
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="student-avatar">
+                        {{ card.attributes.name.split(' ')|map('first')|join('')|upper }}
+                    </div>
+                    <div>
+                        <div class="student-name">{{ card.attributes.name }}</div>
+                        <span class="badge" style="background:var(--uj-gold); color:var(--uj-green-dark);">{{ card.attributes.enrollment_status }}</span>
+                    </div>
+                </div>
+
+                <div class="row text-start border-top pt-3" style="border-color: rgba(255,255,255,.2) !important;">
+                    <div class="col-6 mb-2"><span class="attr-label">Program</span><span class="attr-value">{{ card.attributes.program }}</span></div>
+                    <div class="col-6 mb-2"><span class="attr-label">Status</span><span class="attr-value">{{ card.attributes.enrollment_status }}</span></div>
+                    <div class="col-6"><span class="attr-label">Student ID</span><span class="attr-value">{{ card.attributes.student_id }}</span></div>
+                    <div class="col-6"><span class="attr-label">Expires</span><span class="attr-value">{{ card.expires_at }}</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Present VC Action Section -->
+        <div class="text-center mb-4">
+            <button type="button"
+        class="btn btn-uj-gold w-100 mb-2 shadow-sm"
+        data-bs-toggle="modal"
+        data-bs-target="#presentVcModal">
+    Present Credential
+</button>
+
+<button type="button"
+        class="btn btn-outline-danger w-100"
+        data-bs-toggle="modal"
+        data-bs-target="#revokeVcModal">
+    Revoke Credential
+</button>
+        </div>
+
+    {% else %}
+
+<h4 class="mb-3 brand-font">Available Issuers</h4>
+<p class="text-muted mb-4">
+    Request a Verifiable Credential from a trusted issuer.
+</p>
+
+<div class="card shadow-sm mb-3" style="border-radius:14px;">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-3">
+                <div class="uj-logo-badge"><i class="bi bi-shield-lock-fill" style="font-size:1.6rem;color:#1e3c72;"></i></div>
+                <div>
+                    <h5 class="card-title mb-1">
+                        University of Jordan
+                    </h5>
+                    <p class="text-muted mb-1">
+                        Official Credential Issuer
+                    </p>
+                    <small class="text-secondary">
+                        Student Enrollment Verifiable Credential
+                    </small>
+                </div>
+            </div>
+
+            <button type="button"
+                    class="btn btn-uj-primary"
+                    data-bs-toggle="modal"
+                    data-bs-target="#pinModal">
+                Request Credential
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endif %}
+
+    <!-- Modal 1: PIN Authorization for VC Issuance -->
+    <div class="modal fade" id="pinModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content text-dark">
+                <div class="modal-header">
+                    <h5 class="modal-title">Authorize Key Operation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="/wallet/issue-vc" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <div class="modal-body text-center">
+                        <p class="text-muted small">Enter your Wallet Transaction PIN to authorize credential issuance.</p>
+                        <input type="password" name="pin" class="form-control text-center mx-auto" style="max-width: 250px;" pattern="\d{4,8}" placeholder="Enter PIN" required autocomplete="off">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-uj-primary">Authorize & Continue</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2: Upload QR Screenshot to Present VC -->
+    <div class="modal fade" id="presentVcModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content text-dark">
+                <div class="modal-header">
+                    <h5 class="modal-title">Present VC to Verifier</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="/wallet/present-vc" method="POST" id="presentVcForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <div class="modal-body">
+                        <p class="text-muted small">
+                            Upload an image of the Verifier's QR code.
+                        </p>
+                        
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Select Verifier QR Code Image</label>
+                            <input type="file" id="qrFileInput" accept="image/*" class="form-control" required>
+                        </div>
+
+                        <!-- Hidden fields populated automatically after JS reads the QR -->
+                        <input type="hidden" name="challenge" id="extractedChallenge">
+                        <input type="hidden" name="callback_url" id="extractedCallback">
+                        <input type="hidden" name="required_attribute" id="extractedRequiredAttribute" value="enrollment_status">
+                        <input type="hidden" name="required_value" id="extractedRequiredValue" value="active">
+
+                        <div id="qrScanStatus" class="alert alert-info small d-none">
+                            QR Code parsed! Challenge Nonce detected.
+                        </div>
+
+                        <hr class="my-3">
+                        <p class="small fw-bold mb-1">What do you want to share?</p>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" checked disabled>
+                            <label class="form-check-label small text-muted">
+                                Enrollment status (always proven — required by the verifier)
+                            </label>
+                        </div>
+
+                        {% if wallet.available_attributes() %}
+                        <p class="small text-muted mt-2 mb-1">
+                            Optional — everything you leave unchecked stays sealed and is never sent:
+                        </p>
+                        {% for attr in wallet.available_attributes() if attr != 'enrollment_status' %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="extra_attributes"
+                                   value="{{ attr }}" id="extra_{{ attr }}">
+                            <label class="form-check-label small" for="extra_{{ attr }}">
+                                {{ attr.replace('_', ' ')|title }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                        {% endif %}
+
+                        <hr class="my-3">
+                        <label class="form-label small fw-bold">Confirm with your wallet PIN</label>
+                        <input type="password" name="pin" class="form-control text-center" style="max-width: 250px;" pattern="\d{4,8}" placeholder="Enter PIN" required autocomplete="off">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-uj-primary" id="submitProofBtn" disabled>Generate & Send Proof</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 3: PIN Authorization for VC Revocation -->
+    <div class="modal fade" id="revokeVcModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content text-dark">
+                <div class="modal-header">
+                    <h5 class="modal-title text-danger">Revoke Credential</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="/wallet/revoke-vc" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <div class="modal-body text-center">
+                        <p class="text-muted small">
+                            This permanently revokes your current credential with the issuer. It will stop working with any
+                            verifier immediately.
+                        </p>
+                        <input type="password" name="pin" class="form-control text-center mx-auto" style="max-width: 250px;" pattern="\d{4,8}" placeholder="Enter PIN to confirm" required autocomplete="off">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-danger">Revoke Credential</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {% endif %}
+</div>
+
+<!-- JavaScript for Client-Side QR Processing -->
+<script nonce="{{ csp_nonce }}">
+document.addEventListener("DOMContentLoaded", function() {
+    const qrFileInput = document.getElementById('qrFileInput');
+    if (qrFileInput) {
+        qrFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+                    if (code && code.data) {
+                        try {
+                            const parsedData = JSON.parse(code.data);
+                            if (parsedData.challenge) {
+                                // NOTE (defense-in-depth only, not a security boundary):
+                                // callback_url comes straight from the scanned QR code,
+                                // i.e. it's attacker-controlled input. The wallet SERVER
+                                // is the one that actually enforces where the signed
+                                // presentation can be sent (see security_utils.validate_callback_url
+                                // / config.ALLOWED_VERIFIER_CALLBACKS) -- this client-side
+                                // check can't be trusted and is only here to warn a user
+                                // before they submit to something unexpected.
+                                const KNOWN_CALLBACKS = ["https://localhost:5001/api/verify"];
+                                const proposedCallback = parsedData.callback_url || "https://localhost:5001/api/verify";
+                                if (!KNOWN_CALLBACKS.includes(proposedCallback)) {
+                                    alert("⚠️ This QR code asks to send your credential to an unrecognized destination:\n\n" +
+                                          proposedCallback +
+                                          "\n\nThe wallet will refuse to send it there. Only scan QR codes from verifiers you trust.");
+                                }
+
+                                document.getElementById('extractedChallenge').value = parsedData.challenge;
+                                document.getElementById('extractedCallback').value = proposedCallback;
+                                // What predicate to prove, straight from the verifier's own QR
+                                // payload (see verifier.html). If missing, fall back to this
+                                // demo's only policy -- the verifier still checks against its
+                                // OWN policy regardless of what's sent here (see app.py).
+                                document.getElementById('extractedRequiredAttribute').value =
+                                    parsedData.required_attribute || 'enrollment_status';
+                                document.getElementById('extractedRequiredValue').value =
+                                    parsedData.required_value || 'active';
+
+                                const statusDiv = document.getElementById('qrScanStatus');
+                                statusDiv.classList.remove('d-none');
+                                statusDiv.textContent = `✅ QR Parsed! Nonce: ${parsedData.challenge.substring(0, 10)}...`;
+
+                                document.getElementById('submitProofBtn').disabled = false;
+                            } else {
+                                alert("QR Code found, but it is missing the required challenge parameter.");
+                            }
+                        } catch (err) {
+                            alert("Decoded QR content is not valid JSON.");
+                        }
+                    } else {
+                        alert("No QR code could be detected in this image. Please select a clearer image/screenshot.");
+                    }
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // ---- Show / hide password toggles (registration, confirm, PIN, login) ----
+    document.querySelectorAll('.pw-toggle-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const targetId = btn.getAttribute('data-toggle-target');
+            const input = document.getElementById(targetId);
+            const icon = btn.querySelector('i');
+            if (!input) return;
+            const showing = input.type === 'text';
+            input.type = showing ? 'password' : 'text';
+            icon.classList.toggle('bi-eye', showing);
+            icon.classList.toggle('bi-eye-slash', !showing);
+        });
+    });
+
+    // ---- Live password requirement checklist + confirm-match feedback ----
+    const pwField = document.getElementById('regPassword');
+    const confirmField = document.getElementById('regConfirmPassword');
+    const matchMsg = document.getElementById('pwMatchMsg');
+    const reqList = document.getElementById('pwRequirements');
+
+    function evaluatePassword() {
+        if (!pwField || !reqList) return;
+        const val = pwField.value;
+        const rules = {
+            length: val.length >= 12,
+            lower: /[a-z]/.test(val),
+            upper: /[A-Z]/.test(val),
+            digit: /\d/.test(val),
+            symbol: /[^\w\s]/.test(val)
+        };
+        Object.keys(rules).forEach(function(key) {
+            const li = reqList.querySelector('[data-rule="' + key + '"]');
+            if (li) li.classList.toggle('met', rules[key]);
+        });
+        evaluateMatch();
+    }
+
+    function evaluateMatch() {
+        if (!confirmField || !matchMsg) return;
+        if (confirmField.value.length === 0) {
+            matchMsg.textContent = '';
+            matchMsg.className = 'pw-match-msg';
+            return;
+        }
+        if (confirmField.value === pwField.value) {
+            matchMsg.textContent = '✓ Passwords match';
+            matchMsg.className = 'pw-match-msg ok';
+        } else {
+            matchMsg.textContent = '✗ Passwords do not match';
+            matchMsg.className = 'pw-match-msg bad';
+        }
+    }
+
+    if (pwField) pwField.addEventListener('input', evaluatePassword);
+    if (confirmField) confirmField.addEventListener('input', evaluateMatch);
+});
+</script>
+</body>
+</html>

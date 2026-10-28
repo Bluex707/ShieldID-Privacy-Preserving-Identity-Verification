@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>UJ Identity Wallet - Two-Factor Authentication</title>
+    <link href="/static/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/vendor/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
+    <script src="{{ url_for('static', filename='qrcode.min.js') }}"></script>
+    <style>
+        :root{
+            --uj-green-dark:#0b3d2e; --uj-green:#0f5c40; --uj-green-light:#1c8f63;
+            --uj-gold:#c8a24d; --uj-gold-light:#e9d38f; --uj-cream:#f7f5ef; --ink:#122019;
+        }
+        body{ background: var(--uj-cream); font-family:'Inter', system-ui, sans-serif; color: var(--ink); }
+        h1,h2,h3,h4,h5,.brand-font{ font-family:'Poppins', system-ui, sans-serif; }
+        .uj-topbar{
+            background: linear-gradient(135deg, var(--uj-green-dark), var(--uj-green) 70%);
+            border-bottom: 3px solid var(--uj-gold); padding: 18px 0; margin-bottom: 32px;
+        }
+        .uj-brand-text{ color:#fff; }
+        .uj-brand-text small{ color: var(--uj-gold-light); }
+        .auth-card{ border:none; border-radius:18px; box-shadow: 0 12px 30px rgba(11,61,46,0.12); }
+        .btn-uj-primary{ background: var(--uj-green); border-color: var(--uj-green); color:#fff; font-weight:600; }
+        .btn-uj-primary:hover{ background: var(--uj-green-dark); border-color: var(--uj-green-dark); color:#fff; }
+        #qrcode{ display:flex; justify-content:center; margin: 18px 0; }
+        #qrcode img, #qrcode canvas{ border: 6px solid #fff; border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,.15); }
+        .secret-box{
+            font-family: monospace; letter-spacing: 2px; background:#f1f0ea; border-radius:8px;
+            padding: 8px 12px; text-align:center; word-break: break-all;
+        }
+        .code-input{ letter-spacing: 8px; font-size: 1.4rem; text-align:center; }
+    </style>
+</head>
+<body>
+
+<div class="uj-topbar">
+    <div class="container d-flex align-items-center gap-3" style="max-width:600px;">
+        <div class="uj-brand-text">
+            <div class="fw-bold" style="font-size:1.05rem;">University of Jordan</div>
+            <small>Student Digital Identity Wallet</small>
+        </div>
+    </div>
+</div>
+
+<div class="container pb-5" style="max-width: 500px;">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm">{{ message }}
+             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="card auth-card p-4 text-center">
+        {% if mode == 'setup' %}
+            <h4 class="brand-font mb-1"><i class="bi bi-shield-check" style="color:var(--uj-green);"></i> Set Up Two-Factor Login</h4>
+            <p class="text-muted small">
+                Scan this with Google Authenticator, Authy, or any TOTP app. This is required
+                so your password (something you know) is backed by a second, different factor
+                (something you have — this enrolled device).
+            </p>
+
+            <div id="qrcode"></div>
+            <p class="text-muted small mb-1">Can't scan? Enter this key manually:</p>
+            <div class="secret-box mb-3">{{ totp_secret }}</div>
+
+            <form method="POST" action="{{ url_for('setup_mfa') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <label class="form-label small text-muted">Enter the 6-digit code from your app to confirm</label>
+                <input type="text" name="totp_code" class="form-control code-input mb-3" maxlength="6"
+                       pattern="\d{6}" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" required autofocus>
+                <button type="submit" class="btn btn-uj-primary w-100">Confirm & Finish Registration</button>
+            </form>
+
+            <script nonce="{{ csp_nonce }}">
+                new QRCode(document.getElementById("qrcode"), {
+                    text: {{ totp_uri | tojson }},
+                    width: 200, height: 200,
+                    colorDark: "#0b3d2e", colorLight: "#ffffff"
+                });
+            </script>
+
+        {% else %}
+            <h4 class="brand-font mb-1"><i class="bi bi-phone" style="color:var(--uj-green);"></i> Enter Authenticator Code</h4>
+            <p class="text-muted small">
+                Password verified for <strong>{{ username }}</strong>. Enter the current 6-digit code
+                from your authenticator app to finish logging in.
+            </p>
+
+            <form method="POST" action="{{ url_for('verify_mfa') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="text" name="totp_code" class="form-control code-input mb-3" maxlength="6"
+                       pattern="\d{6}" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" required autofocus>
+                <button type="submit" class="btn btn-uj-primary w-100">Verify & Log In</button>
+            </form>
+            <a href="{{ url_for('auth_wallet') }}" class="d-block mt-3 small text-muted">Cancel and go back</a>
+        {% endif %}
+    </div>
+</div>
+</body>
+</html>

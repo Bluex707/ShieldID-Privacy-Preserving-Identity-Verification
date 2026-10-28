@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - name: Unit tests
+        run: python -m pytest -q
+      - name: Static security analysis (bandit)
+        run: bandit -r . -x ./tests,./scripts,./static -s B101
+      - name: Dependency audit
+        # PYSEC-2026-1325 (python-ecdsa side channels, CVE-2024-23342) has no
+        # upstream fix and is documented in README -> Known limitations.
+        run: pip-audit -r requirements.txt --ignore-vuln PYSEC-2026-1325

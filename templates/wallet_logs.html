@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Security Log - UJ Identity Wallet</title>
+    <link href="/static/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/vendor/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        :root{
+            --uj-green-dark:#0b3d2e; --uj-green:#0f5c40; --uj-green-light:#1c8f63;
+            --uj-gold:#c8a24d; --uj-gold-light:#e9d38f; --uj-cream:#f7f5ef; --ink:#122019;
+        }
+        body{ background: var(--uj-cream); font-family:'Inter', system-ui, sans-serif; color: var(--ink); }
+        h1,h2,h3,h4,h5,.brand-font{ font-family:'Poppins', system-ui, sans-serif; }
+        .uj-topbar{
+            background: linear-gradient(135deg, var(--uj-green-dark), var(--uj-green) 70%);
+            border-bottom: 3px solid var(--uj-gold); padding: 18px 0; margin-bottom: 32px;
+        }
+        .uj-brand-text{ color:#fff; }
+        .uj-brand-text small{ color: var(--uj-gold-light); }
+        .card{ border:none; border-radius: 16px; box-shadow: 0 12px 30px rgba(11,61,46,0.10); }
+        .table thead th{ color: var(--uj-green-dark); font-weight:700; border-bottom-width:2px; }
+        .btn-uj-outline{ border-color: var(--uj-green); color: var(--uj-green); font-weight:600; }
+        .btn-uj-outline:hover{ background: var(--uj-green); color:#fff; }
+    </style>
+</head>
+<body>
+
+<div class="uj-topbar">
+    <div class="container d-flex align-items-center gap-3" style="max-width:750px;">
+        <div class="uj-brand-text">
+            <div class="fw-bold" style="font-size:1.05rem;">University of Jordan</div>
+            <small>Student Digital Identity Wallet</small>
+        </div>
+    </div>
+</div>
+
+<div class="container pb-5" style="max-width: 750px;">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="mb-0 brand-font"><i class="bi bi-shield-check" style="color:var(--uj-green);"></i> Security &amp; Authentication Log</h4>
+            <small class="text-muted">Wallet: <strong>{{ wallet.username }}</strong></small>
+        </div>
+        <a href="/" class="btn btn-uj-outline btn-sm">&larr; Back to Wallet</a>
+    </div>
+
+    <p class="text-muted small">
+        Every login attempt, PIN authorization, credential issuance/revocation, and
+        credential presentation is recorded here. Passwords and PINs themselves are
+        never stored — only the outcome of each attempt.
+    </p>
+
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Time (UTC)</th>
+                        <th>Event</th>
+                        <th>Result</th>
+                        <th>Detail</th>
+                        <th>IP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in logs %}
+                    <tr>
+                        <td class="small text-nowrap">{{ entry.timestamp }}</td>
+                        <td class="small">{{ entry.event }}</td>
+                        <td>
+                            {% if entry.success %}
+                                <span class="badge" style="background:var(--uj-green);">success</span>
+                            {% else %}
+                                <span class="badge bg-danger">failed</span>
+                            {% endif %}
+                        </td>
+                        <td class="small text-muted">{{ entry.detail }}</td>
+                        <td class="small text-muted">{{ entry.ip }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="text-center text-muted py-3">No events recorded yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</body>
+</html>

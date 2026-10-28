@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>University SSO Login</title>
+    <link href="/static/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-secondary text-white d-flex align-items-center vh-100">
+<div class="container" style="max-width: 400px;">
+    <div class="card text-dark shadow-lg p-4">
+        <h4 class="text-center mb-2">🏛️ University of Jordan SSO</h4>
+        <p class="text-center text-muted small mb-4">Authorize <strong>Identity Wallet</strong> to issue your Verifiable Credential</p>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} p-2 small">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="mb-3">
+                <label class="form-label">Portal Username</label>
+                <input type="text" name="username" class="form-control" autocomplete="username" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Password</label>
+                <input type="password" name="password" class="form-control" autocomplete="current-password" required>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Authorize & Issue</button>
+        </form>
+    </div>
+</div>
+</body>
+</html>
