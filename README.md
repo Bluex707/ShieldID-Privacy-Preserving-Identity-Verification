@@ -3,7 +3,7 @@
 This project presents a multi-threaded client–server file sharing application implemented using TCP sockets. Security is enforced through a hybrid cryptographic approach, where public-key cryptography is used to securely distribute a symmetric secret key that encrypts all data exchanged between the client and the server. The system adopts a zero-trust security model, requiring clients to provide a valid session key for every command execution. Client authentication is performed using username and password credentials, and role-based access control is implemented to restrict operations based on assigned privileges. Additionally, the application validates client inputs to ensure robustness against malformed or malicious requests.
 
 ##  Group member names
--Ayat Abueid ID:0229098
+-Ayat Abueid 
 
 -Ahmad Allobani
 
@@ -30,7 +30,7 @@ Ensure the following files are present in the project root for the "Zero-Trust" 
 
 Note: I think this is all hopefully I didn't forget anything.
 
-## Features and limitations
+## Features 
 
 - **1. Hybrid Cryptographic Framework**  
   Combines the security of RSA-2048 (Asymmetric) for identity verification and key exchange with the speed of AES-GCM-128 (Symmetric) for file data encryption.
